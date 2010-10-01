@@ -24,8 +24,15 @@ end
 module Statemachine
 	module Extends
 		def state(name, &method)
-			p @_statemachine_states
-			@_statemachine_states[name] = method
+			if method
+				@_statemachine_states[name] = method
+			else
+				@_statemachine_states[name]
+			end
+		end
+
+		def default_state
+			@_statemachine_default
 		end
 	end
 
@@ -34,6 +41,8 @@ module Statemachine
 	end
 
 	def handle
+		@state ||= self.class.default_state
+		p @state
 	end
 end
 

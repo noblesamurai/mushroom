@@ -21,7 +21,6 @@ class Mushroom::ClientSpore < Mushroom::Spore
 	def initialize(mushroom, socket)
 		super(mushroom, socket)
 		@buffer = ""
-		@state = :request
 	end
 
 	def read_ready!

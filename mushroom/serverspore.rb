@@ -13,6 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with mushroom.  If not, see <http://www.gnu.org/licenses/>.
 
+require 'mushroom/clientspore'
+
 class Mushroom::ServerSpore < Mushroom::Spore
 	def initialize(mushroom, socket)
 		super(mushroom, socket)
@@ -20,7 +22,7 @@ class Mushroom::ServerSpore < Mushroom::Spore
 
 	def read_ready!
 		socket = @mushroom.server.accept
-		@mushroom.spores[socket.to_i] = ClientSpore.new(@mushroom, socket)
+		@mushroom.spores[socket.to_i] = Mushroom::ClientSpore.new(@mushroom, socket)
 	end
 end
 
