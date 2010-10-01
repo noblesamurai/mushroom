@@ -62,7 +62,7 @@ class Mushroom
 		@thread.join
 	end
 
-	attr_accessor :server, :spores, :x509, :rsakey
+	attr_accessor :server, :port, :spores, :x509, :rsakey
 
 	private
 
