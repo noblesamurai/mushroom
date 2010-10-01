@@ -3,7 +3,7 @@
 
 ## introduction
 
-_mushroom_s are delicious.
+_mushrooms_ are delicious.
 
 Consider [beef stroganoff](http://en.wikipedia.org/wiki/Beef_stroganoff); a classic dish which uses _mushroom_.
 
