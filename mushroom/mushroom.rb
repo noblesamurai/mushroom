@@ -67,6 +67,16 @@ class Mushroom
 	private
 
 	def _loop
-		IO.select(@spores.values).first.each &:read_ready! while @started
+		while @started
+			ready = IO.select(@spores.values).first
+			ready.each do |r|
+				begin
+					r.read_ready!
+				rescue => e
+					p e
+					r.delete!
+				end
+			end
+		end
 	end
 end

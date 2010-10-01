@@ -104,18 +104,13 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		send_status @http_ver, 200
 		send_last_header
 
-		puts "forming context"
+		puts "forming SSL context"
 		ctx = OpenSSL::SSL::SSLContext.new("SSLv23_server")
 		ctx.cert = OpenSSL::X509::Certificate.new(@mushroom.x509)
 		ctx.key = OpenSSL::PKey::RSA.new(@mushroom.rsakey)
 
-		puts "going to accept"
-		puts "here goes"
-		ssls = OpenSSL::SSL::SSLSocket.new(@socket, ctx)	# !!
-		r = ssls.accept
-		puts "ACCEPTED"
-		ssls.write "HTTP/1.1 200 OK\r\nContent-length: 10\r\n\r\n01234501234\r\n"
-		ssls.close
+		@socket = OpenSSL::SSL::SSLSocket.new(@socket, ctx)	# !!
+		@socket.accept
 
 		puts "outbounding to #{@ssl_remote_uri}:#{@ssl_remote_port}"
 		remote = TCPSocket.new(@ssl_remote_uri, @ssl_remote_port)
