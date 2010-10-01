@@ -42,6 +42,12 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		rescue; end
 	end
 
-	state :request
+	state :request do
+
+	end
+
+	state :headers do
+
+	end
 end
 

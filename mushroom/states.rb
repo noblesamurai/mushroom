@@ -16,16 +16,16 @@
 class Class
 	def state_machine!(start)
 		include Statemachine
-		self.class_variable_set "@@_statemachine_default", start
-		self.class_variable_set "@@_statemachine_states", {}
+		@_statemachine_default = start
+		@_statemachine_states = {}
 	end
 end
 
 module Statemachine
 	module Extends
 		def state(name, &method)
-			self.class_variable_get "@@_statemachine_states"
-			@@_statemachine_states[name] = method
+			p @_statemachine_states
+			@_statemachine_states[name] = method
 		end
 	end
 
