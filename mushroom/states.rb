@@ -15,13 +15,13 @@
 
 class Class
 	def state_machine!(start)
-		include Statemachine
+		include StateMachine
 		@_statemachine_default = start
 		@_statemachine_states = {}
 	end
 end
 
-module Statemachine
+module StateMachine
 	module Extends
 		def state(name, &method)
 			if method
@@ -40,9 +40,27 @@ module Statemachine
 		mc.extend Extends
 	end
 
-	def handle
+	def handle(*args)
 		@state ||= self.class.default_state
-		p @state
+		raise NameError, "state \"#@state\" not defined" if self.class.state(@state).nil?
+
+		@_statemachine_notready = Object.new
+		catch @_statemachine_notready do
+			instance_exec *args, &self.class.state(@state)
+		end
+	end
+
+	def transition_to(state)
+		@state = state
+	end
+
+	def transition_now(state, *args)
+		transition_to state
+		handle *args
+	end
+
+	def not_ready!
+		throw @_statemachine_notready
 	end
 end
 

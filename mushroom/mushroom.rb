@@ -23,10 +23,21 @@ class Mushroom
 		end
 
 		def to_io; @socket.to_io; end
+		def to_i; @socket.to_i; end
+
+		def delete!
+			@mushroom.spores.delete @socket.to_i
+			begin
+				@socket.flush
+				@socket.close
+			rescue; end
+		end
 	end
 
 	def initialize(opts={})
 		@port = opts[:port] || 7726
+		@x509 = opts[:x509] || nil
+		@rsakey = opts[:rsakey] || nil
 	end
 
 	def start!
@@ -51,7 +62,7 @@ class Mushroom
 		@thread.join
 	end
 
-	attr_accessor :server, :spores
+	attr_accessor :server, :spores, :x509, :rsakey
 
 	private
 

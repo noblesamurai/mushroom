@@ -13,14 +13,19 @@
 # You should have received a copy of the GNU General Public License
 # along with mushroom.  If not, see <http://www.gnu.org/licenses/>.
 
-## mushroom
-# a HTTP/S proxy for Ruby
+class Mushroom::RemoteSpore < Mushroom::Spore
+	def initialize(mushroom, socket, front)
+		super(mushroom, socket)
+		@front = front
+	end
 
-$: << File.dirname(__FILE__)
-
-require 'socket'
-require 'mushroom/mushroom'
-require 'mushroom/serverspore'
-require 'mushroom/clientspore'
-require 'mushroom/remotespore'
+	def read_ready!
+		@front.write(begin
+			@socket.readpartial 8192
+		rescue EOFError
+			delete!
+			return
+		end)
+	end
+end
 
