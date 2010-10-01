@@ -45,18 +45,16 @@ module StateMachine
 		raise NameError, "state \"#@state\" not defined" if self.class.state(@state).nil?
 
 		@_statemachine_notready = Object.new
-		catch @_statemachine_notready do
+		start = @state
+		was_ready = catch @_statemachine_notready do
 			instance_exec *args, &self.class.state(@state)
+			true
 		end
+		handle if was_ready
 	end
 
 	def transition_to(state)
 		@state = state
-	end
-
-	def transition_now(state, *args)
-		transition_to state
-		handle *args
 	end
 
 	def not_ready!

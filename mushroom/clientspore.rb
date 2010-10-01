@@ -49,9 +49,16 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		@socket.write "#{name}: #{val}\r\n"
 	end
 
+	def send_last_header
+		@socket.write "\r\n"
+	end
+
 	def send_error ver, num
 		send_status ver, num
-		send_header "Content-Length", 0
+		body = "<html><head><title>#{num} #{ERRORS[num]}</title></head><body><h1>#{num} #{ERRORS[num]}</body></html>"
+		send_header "Content-Length", body.length
+		send_last_header
+		@socket.write body
 	end
 
 	def buffer_to_nl
@@ -60,47 +67,68 @@ class Mushroom::ClientSpore < Mushroom::Spore
 	end
 
 	state :request do
-		method, uri, http_ver = buffer_to_nl.split(" ", 3)
+		@method, @uri, @http_ver = buffer_to_nl.strip.split(" ", 3)
 
-		if not %w(HTTP/1.0 HTTP/1.1).include? http_ver
-			send_error http_ver, 505
+		p [@method, @uri, @http_ver]
+
+		if not %w(HTTP/1.0 HTTP/1.1).include? @http_ver
+			send_error @http_ver, 505
 			next delete!
 		end
 
-		if method == "CONNECT"
-			uri, port = uri.split(":", 2)
+		if @method == "CONNECT"
+			uri, port = @uri.split(":", 2)
 			port = port.to_i
 
 			if port != 443
-				send_error http_ver, 403
+				send_error @http_ver, 403
 				next delete!
 			end
 
-			next transition_now :ssl_begin, uri, port
+			@ssl_remote_uri, @ssl_remote_port = uri, port
+			next transition_to :ssl_headers
 		end
-		
-		p method, uri, http_ver
+
 		transition_to :headers
 	end
 
+	state :ssl_headers do
+		header = buffer_to_nl.strip
+		next transition_to :ssl_begin if header.length.zero?
+		name, value = header.split(":", 2)
+		value.gsub! /^\s*/, ''
+		p({name => value})
+	end
+
 	state :ssl_begin do
+		send_status @http_ver, 200
+		send_last_header
+
+		puts "forming context"
 		ctx = OpenSSL::SSL::SSLContext.new("SSLv23_server")
 		ctx.cert = OpenSSL::X509::Certificate.new(@mushroom.x509)
 		ctx.key = OpenSSL::PKey::RSA.new(@mushroom.rsakey)
 
-		@socket = OpenSSL::SSL::SSLSocket.new(@socket, ctx)	# !!
-		@socket.connect
+		puts "going to accept"
+		puts "here goes"
+		ssls = OpenSSL::SSL::SSLSocket.new(@socket, ctx)	# !!
+		r = ssls.accept
+		puts "ACCEPTED"
+		ssls.write "HTTP/1.1 200 OK\r\nContent-length: 10\r\n\r\n01234501234\r\n"
+		ssls.close
 
-		remote = TCPSocket.new(uri, port)
+		puts "outbounding to #{@ssl_remote_uri}:#{@ssl_remote_port}"
+		remote = TCPSocket.new(@ssl_remote_uri, @ssl_remote_port)
 		@sslrem = OpenSSL::SSL::SSLSocket.new(remote.to_io)
 		@sslrem.connect
-		@mushroom.spores[@sslrem.to_i] = Mushroom::RemoteSpore.new(@mushroom, @sslrem, @socket)
+		@mushroom.spores[@sslrem.to_io.fileno] = Mushroom::RemoteSpore.new(@mushroom, @sslrem, @socket)
 
 		# BILATERAL COMMUNICATIONS WITH THE PRESIDENT Y'KNOW WHAT I'M SAYIN'
 		transition_to :ssl_comm
 	end
 
 	state :ssl_comm do
+		not_ready! if @buffer.length.zero?
 		@sslrem.write @buffer
 		@buffer = ""
 	end

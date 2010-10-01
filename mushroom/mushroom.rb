@@ -23,10 +23,10 @@ class Mushroom
 		end
 
 		def to_io; @socket.to_io; end
-		def to_i; @socket.to_i; end
+		def to_i; to_io.to_i; end
 
 		def delete!
-			@mushroom.spores.delete @socket.to_i
+			@mushroom.spores.delete to_i
 			begin
 				@socket.flush
 				@socket.close
