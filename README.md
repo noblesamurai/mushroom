@@ -5,7 +5,7 @@
 
 _mushrooms_ are delicious.
 
-Consider [beef stroganoff](http://en.wikipedia.org/wiki/Beef_stroganoff); a classic dish which uses _mushroom_.
+Consider [Бефстроганов](http://en.wikipedia.org/wiki/Beef_stroganoff); a classic dish which uses _mushroom_.
 
 ## contributors
 

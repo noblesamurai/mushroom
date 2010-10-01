@@ -13,35 +13,27 @@
 # You should have received a copy of the GNU General Public License
 # along with mushroom.  If not, see <http://www.gnu.org/licenses/>.
 
-require 'mushroom/states'
-
-class Mushroom::ClientSpore < Mushroom::Spore
-	state_machine! :request
-
-	def initialize(mushroom, socket)
-		super(mushroom, socket)
-		@buffer = ""
-		@state = :request
+class Class
+	def state_machine!(start)
+		include Statemachine
+		self.class_variable_set "@@_statemachine_default", start
+		self.class_variable_set "@@_statemachine_states", {}
 	end
+end
 
-	def read_ready!
-		begin
-			@buffer += @socket.readpartial 8192
-		rescue EOFError
-			delete!
-			return
+module Statemachine
+	module Extends
+		def state(name, &method)
+			self.class_variable_get "@@_statemachine_states"
+			@@_statemachine_states[name] = method
 		end
-
-		handle
 	end
 
-	def delete!
-		@mushroom.spores.delete @socket.to_i
-		begin
-			@socket.close
-		rescue; end
+	def self.included(mc)
+		mc.extend Extends
 	end
 
-	state :request
+	def handle
+	end
 end
 
