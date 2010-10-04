@@ -13,15 +13,23 @@
 # You should have received a copy of the GNU General Public License
 # along with mushroom.  If not, see <http://www.gnu.org/licenses/>.
 
-## mushroom
-# a HTTP/S proxy for Ruby
+## RemoteForwarderSpore
+# Just forwards data back to a socket.
+#
 
-$: << File.dirname(__FILE__)
+class Mushroom::RemoteForwarderSpore < Mushroom::Spore
+	def initialize(mushroom, socket, front)
+		super(mushroom, socket)
+		@front = front
+	end
 
-require 'socket'
-require 'mushroom/mushroom'
-require 'mushroom/serverspore'
-require 'mushroom/clientspore'
-require 'mushroom/remoteforwarderspore'
-require 'mushroom/remotepushbackspore'
+	def read_ready!
+		@front.write(begin
+			@socket.readpartial 8192
+		rescue EOFError
+			delete!
+			return
+		end)
+	end
+end
 

@@ -13,19 +13,25 @@
 # You should have received a copy of the GNU General Public License
 # along with mushroom.  If not, see <http://www.gnu.org/licenses/>.
 
-class Mushroom::RemoteSpore < Mushroom::Spore
-	def initialize(mushroom, socket, front)
+## RemotePushbackSpore
+# Pushes data back to another spore.
+#
+
+class Mushroom::RemotePushbackSpore < Mushroom::Spore
+	def initialize(mushroom, socket, targetspore)
 		super(mushroom, socket)
-		@front = front
+		@targetspore = targetspore
 	end
 
 	def read_ready!
-		@front.write(begin
-			@socket.readpartial 8192
-		rescue EOFError
-			delete!
-			return
-		end)
+		@targetspore.pushback(:delivery,
+			begin
+				@socket.readpartial 8192
+			rescue EOFError
+				@targetspore.pushback :gone!
+				delete!
+				return
+			end)
 	end
 end
 

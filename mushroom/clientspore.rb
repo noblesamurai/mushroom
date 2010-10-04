@@ -43,6 +43,20 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		handle
 	end
 
+	def pushback method, *args
+		send "pushback_#{method}", *args
+	end
+
+	def pushback_delivery content
+		@remote_buffer += content
+		handle
+	end
+
+	def pushback_gone!
+		@remote_gone = true
+		handle
+	end
+
 	def send_status ver, num
 		@socket.write "#{%w(HTTP/1.0 HTTP/1.1).include?(ver) ? ver : "HTTP/1.1"} #{num} #{ERRORS[num]}\r\n"
 	end
@@ -57,15 +71,15 @@ class Mushroom::ClientSpore < Mushroom::Spore
 
 	def send_error ver, num
 		send_status ver, num
-		body = "<html><head><title>#{num} #{ERRORS[num]}</title></head><body><h1>#{num} #{ERRORS[num]}</body></html>"
+		body = "<html><head><title>#{num} #{ERRORS[num]}</title></head><body><h1>#{num} #{ERRORS[num]}</h1></body></html>"
 		send_header "Content-Length", body.length
 		send_last_header
 		@socket.write body
 	end
 
-	def buffer_to_nl
-		not_ready! if @buffer.index(?\n).nil?
-		@buffer.slice!(0, @buffer.index(?\n) + 1)[0..-2]
+	def buffer_to_nl(buf=:@buffer)
+		not_ready! if instance_variable_get(buf).index(?\n).nil?
+		instance_variable_get(buf).slice!(0, instance_variable_get(buf).index(?\n) + 1)[0..-2]
 	end
 
 	state :request do
@@ -96,7 +110,7 @@ class Mushroom::ClientSpore < Mushroom::Spore
 			next delete!
 		end
 
-		@fwd_headers = {}
+		@fwd_headers = []
 		transition_to :headers
 	end
 
@@ -107,12 +121,12 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		value.gsub! /^\s*/, ''
 
 		next if name.match(/^proxy/i)	# ignore proxy-related headers
-		@fwd_headers[name] = value
+		@fwd_headers << [name, value]
 	end
 
 	state :data do
-		@data = if clh = @fwd_headers.keys.find {|k| k.match(/^content-?length$/i)}
-			clen = @fwd_headers[clh].to_i
+		@data = if clh = @fwd_headers.find {|k,v| k.match(/^content-?length$/i)}
+			clen = clh.last.to_i
 			not_ready! if @buffer.length < clen
 			@buffer.slice! 0, clen
 		end
@@ -129,18 +143,55 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		@remote.write "\r\n#@data"
 		@remote.flush
 
-		@mushroom.spores[@remote.to_io.fileno] = Mushroom::RemoteSpore.new(@mushroom, @remote, @socket)
+		@remote_gone, @remote_buffer = false, ""
+		@remote_spore = @mushroom.spores[@remote.to_io.fileno] = Mushroom::RemotePushbackSpore.new(@mushroom, @remote, self)
 
-		transition_to :comm
+		transition_to :recv_status
 	end
 
-	state :comm do
-		not_ready! if @buffer.length.zero?
-		puts "Uh oh, tried to write more! #@buffer"
-		@remote.write @buffer
-		@buffer = ""
+	state :recv_status do
+		http_resp, http_code, http_reason = buffer_to_nl(:@remote_buffer).strip.split(" ", 3)
+		@socket.write "#{http_resp} #{http_code} #{http_reason}\r\n"
+		@socket.write "Connection: close\r\nProxy-Connection: close\r\n"
+		@recv_length = nil
+		transition_to :recv_headers
 	end
 
+	state :recv_headers do
+		header = buffer_to_nl(:@remote_buffer).strip
+		if header.length.zero?
+			@socket.write "\r\n"
+			next transition_to :recv_data
+		end
+
+		name, value = header.split(":", 2)
+		value.gsub! /^\s*/, ''
+
+		next if name.match(/^proxy/i) or name.match(/^connection$/i)
+		@recv_length = value.to_i if name.match(/^content-?length$/i)
+		@socket.write "#{name}: #{value}\r\n"
+	end
+
+	state :recv_data do
+		next transition_to :recv_done if @recv_length.nil? or @recv_length.zero?
+		not_ready! if @remote_buffer.length.zero?
+		data = @remote_buffer
+		@remote_buffer = ""
+
+		@socket.write data
+		@socket.flush
+		@recv_length -= data.length
+	end
+
+	state :recv_done do
+		@remote_spore.delete! rescue false
+		delete!
+
+		# If we don't declare ourselves as not ready, the
+		# statemachine will think we continue to have things
+		# to do here.
+		not_ready!
+	end
 
 	state :ssl_headers do
 		header = buffer_to_nl.strip
@@ -164,7 +215,7 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		remote = TCPSocket.new(@ssl_remote_uri, @ssl_remote_port)
 		@sslrem = OpenSSL::SSL::SSLSocket.new(remote.to_io)
 		@sslrem.connect
-		@mushroom.spores[@sslrem.to_io.fileno] = Mushroom::RemoteSpore.new(@mushroom, @sslrem, @socket)
+		@mushroom.spores[@sslrem.to_io.fileno] = Mushroom::RemoteForwarderSpore.new(@mushroom, @sslrem, @socket)
 
 		# BILATERAL COMMUNICATIONS WITH THE PRESIDENT Y'KNOW WHAT I'M SAYIN'
 		transition_to :ssl_comm

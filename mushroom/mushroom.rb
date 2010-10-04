@@ -20,17 +20,16 @@ class Mushroom
 	class Spore
 		def initialize(mushroom, socket)
 			@mushroom, @socket = mushroom, socket
+			@i = @socket.to_io.to_i
 		end
 
 		def to_io; @socket.to_io; end
-		def to_i; to_io.to_i; end
+		def to_i; @i; end
 
 		def delete!
 			@mushroom.spores.delete to_i
-			begin
-				@socket.flush
-				@socket.close
-			rescue; end
+			@socket.flush rescue false
+			@socket.close rescue false
 		end
 	end
 
@@ -73,6 +72,7 @@ class Mushroom
 					r.read_ready!
 				rescue => e
 					p e
+					puts e.backtrace.join("\n")
 					r.delete!
 				end
 			end
