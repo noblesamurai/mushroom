@@ -36,8 +36,7 @@ class Mushroom
 
 	def initialize(opts={})
 		@port = opts[:port] || 7726
-		@x509 = opts[:x509] || nil
-		@rsakey = opts[:rsakey] || nil
+		@get_cert_for = opts[:get_cert_for] || nil
 	end
 
 	def start!
@@ -62,7 +61,7 @@ class Mushroom
 		@thread.join
 	end
 
-	attr_accessor :server, :port, :spores, :x509, :rsakey
+	attr_accessor :server, :port, :spores, :get_cert_for
 
 	private
 

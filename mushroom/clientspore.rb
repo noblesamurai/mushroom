@@ -15,12 +15,14 @@
 
 require 'mushroom/states'
 require 'openssl'
+require 'uri'
 
 class Mushroom::ClientSpore < Mushroom::Spore
 	ERRORS = {
 		200 => "OK",
 		403 => "Forbidden",
 		404 => "File Not Found",
+		501 => "Not Implemented",
 		505 => "HTTP Version Not Supported",
 	}
 	state_machine! :request
@@ -89,30 +91,76 @@ class Mushroom::ClientSpore < Mushroom::Spore
 			next transition_to :ssl_headers
 		end
 
+		if not %w(OPTIONS GET HEAD POST PUT).include? @method
+			send_error @http_ver, 501
+			next delete!
+		end
+
+		@fwd_headers = {}
 		transition_to :headers
 	end
+
+	state :headers do
+		header = buffer_to_nl.strip
+		next transition_to :data if header.length.zero?
+		name, value = header.split(":", 2)
+		value.gsub! /^\s*/, ''
+
+		next if name.match(/^proxy/i)	# ignore proxy-related headers
+		@fwd_headers[name] = value
+	end
+
+	state :data do
+		@data = if clh = @fwd_headers.keys.find {|k| k.match(/^content-?length$/i)}
+			clen = @fwd_headers[clh].to_i
+			not_ready! if @buffer.length < clen
+			@buffer.slice! 0, clen
+		end
+		transition_to :outbound
+	end
+
+	state :outbound do
+		uri = URI.parse(@uri)
+		@remote = TCPSocket.new(uri.host, uri.port)
+		@remote.write "#@method #{uri.request_uri} #@http_ver\r\n"
+		@fwd_headers.each do |k,v|
+			@remote.write "#{k}: #{v}\r\n"
+		end
+		@remote.write "\r\n#@data"
+		@remote.flush
+
+		@mushroom.spores[@remote.to_io.fileno] = Mushroom::RemoteSpore.new(@mushroom, @remote, @socket)
+
+		transition_to :comm
+	end
+
+	state :comm do
+		not_ready! if @buffer.length.zero?
+		puts "Uh oh, tried to write more! #@buffer"
+		@remote.write @buffer
+		@buffer = ""
+	end
+
 
 	state :ssl_headers do
 		header = buffer_to_nl.strip
 		next transition_to :ssl_begin if header.length.zero?
 		name, value = header.split(":", 2)
 		value.gsub! /^\s*/, ''
-		p({name => value})
 	end
 
 	state :ssl_begin do
 		send_status @http_ver, 200
 		send_last_header
 
-		puts "forming SSL context"
 		ctx = OpenSSL::SSL::SSLContext.new("SSLv23_server")
-		ctx.cert = OpenSSL::X509::Certificate.new(@mushroom.x509)
-		ctx.key = OpenSSL::PKey::RSA.new(@mushroom.rsakey)
+		keybundle = @mushroom.get_cert_for.call(@ssl_remote_uri)
+		ctx.cert = OpenSSL::X509::Certificate.new(keybundle[:cert])
+		ctx.key = OpenSSL::PKey::RSA.new(keybundle[:key])
 
 		@socket = OpenSSL::SSL::SSLSocket.new(@socket, ctx)	# !!
 		@socket.accept
 
-		puts "outbounding to #{@ssl_remote_uri}:#{@ssl_remote_port}"
 		remote = TCPSocket.new(@ssl_remote_uri, @ssl_remote_port)
 		@sslrem = OpenSSL::SSL::SSLSocket.new(remote.to_io)
 		@sslrem.connect
