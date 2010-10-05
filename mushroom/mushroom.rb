@@ -36,6 +36,7 @@ class Mushroom
 	def initialize(opts={})
 		@port = opts[:port] || 7726
 		@get_cert_for = opts[:get_cert_for] || nil
+		@promiscuous_connect = opts[:promiscuous_connect] || false
 	end
 
 	def start!
@@ -60,7 +61,7 @@ class Mushroom
 		@thread.join
 	end
 
-	attr_accessor :server, :port, :spores, :get_cert_for
+	attr_accessor :server, :port, :spores, :get_cert_for, :promiscuous_connect
 
 	private
 

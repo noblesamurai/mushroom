@@ -96,7 +96,7 @@ class Mushroom::ClientSpore < Mushroom::Spore
 			uri, port = @uri.split(":", 2)
 			port = port.to_i
 
-			if port != 443
+			if port != 443 and !@mushroom.promiscuous_connect
 				send_error @http_ver, 403
 				next delete!
 			end
