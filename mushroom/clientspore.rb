@@ -89,7 +89,8 @@ class Mushroom::ClientSpore < Mushroom::Spore
 
 		if not %w(HTTP/1.0 HTTP/1.1).include? @http_ver
 			send_error @http_ver, 505
-			next delete!
+			delete!
+			next not_ready!
 		end
 
 		if @method == "CONNECT"
@@ -98,7 +99,8 @@ class Mushroom::ClientSpore < Mushroom::Spore
 
 			if port != 443 and !@mushroom.promiscuous_connect
 				send_error @http_ver, 403
-				next delete!
+				delete!
+				next not_ready!
 			end
 
 			@ssl_remote_uri, @ssl_remote_port = uri, port
@@ -107,7 +109,8 @@ class Mushroom::ClientSpore < Mushroom::Spore
 
 		if not %w(OPTIONS GET HEAD POST PUT).include? @method
 			send_error @http_ver, 501
-			next delete!
+			delete!
+			next not_ready!
 		end
 
 		@fwd_headers = []
