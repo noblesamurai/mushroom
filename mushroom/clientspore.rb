@@ -204,17 +204,22 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		send_status @http_ver, 200
 		send_last_header
 
-		ctx = OpenSSL::SSL::SSLContext.new("SSLv23_server")
-		keybundle = @mushroom.get_cert_for.call(@ssl_remote_uri)
-		ctx.cert = OpenSSL::X509::Certificate.new(keybundle[:cert])
-		ctx.key = OpenSSL::PKey::RSA.new(keybundle[:key])
+		@sslrem = TCPSocket.new(@ssl_remote_uri, @ssl_remote_port)
 
-		@socket = OpenSSL::SSL::SSLSocket.new(@socket, ctx)	# !!
-		@socket.accept
+		if @ssl_remote_port == 443
+			# Masquerade SSL.
+			ctx = OpenSSL::SSL::SSLContext.new("SSLv23_server")
+			keybundle = @mushroom.get_cert_for.call(@ssl_remote_uri)
+			ctx.cert = OpenSSL::X509::Certificate.new(keybundle[:cert])
+			ctx.key = OpenSSL::PKey::RSA.new(keybundle[:key])
 
-		remote = TCPSocket.new(@ssl_remote_uri, @ssl_remote_port)
-		@sslrem = OpenSSL::SSL::SSLSocket.new(remote.to_io)
-		@sslrem.connect
+			@socket = OpenSSL::SSL::SSLSocket.new(@socket, ctx)	# !!
+			@socket.accept
+
+			@sslrem = OpenSSL::SSL::SSLSocket.new(@sslrem.to_io)
+			@sslrem.connect
+		end
+
 		@mushroom.spores[@sslrem.to_io.fileno] = Mushroom::RemoteForwarderSpore.new(@mushroom, @sslrem, @socket)
 
 		# BILATERAL COMMUNICATIONS WITH THE PRESIDENT Y'KNOW WHAT I'M SAYIN'
