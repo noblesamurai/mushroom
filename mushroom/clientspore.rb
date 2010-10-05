@@ -23,6 +23,7 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		403 => "Forbidden",
 		404 => "File Not Found",
 		501 => "Not Implemented",
+		504 => "Gateway timeout",
 		505 => "HTTP Version Not Supported",
 	}
 	state_machine! :request
@@ -207,7 +208,13 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		send_status @http_ver, 200
 		send_last_header
 
-		@sslrem = TCPSocket.new(@ssl_remote_uri, @ssl_remote_port)
+		begin
+			@sslrem = TCPSocket.new(@ssl_remote_uri, @ssl_remote_port)
+		rescue Errno::ECONNREFUSED
+			send_error @http_ver, 504
+			delete!
+			next not_ready!
+		end
 
 		if @ssl_remote_port == 443
 			# Masquerade SSL.
