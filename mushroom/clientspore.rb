@@ -14,6 +14,7 @@
 # along with mushroom.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'mushroom/states'
+require 'mushroom/sporestream'
 require 'openssl'
 require 'uri'
 
@@ -230,7 +231,9 @@ class Mushroom::ClientSpore < Mushroom::Spore
 			@sslrem.connect
 		end
 
-		@mushroom.spores[@sslrem.to_io.fileno] = Mushroom::RemoteForwarderSpore.new(@mushroom, @sslrem, @socket)
+		@mushroom.new_stream!(@stream = Mushroom::SporeStream.new(2))
+		@aspect = @stream.aspect_a
+		@mushroom.spores[@sslrem.to_io.fileno] = Mushroom::RemoteForwarderSpore.new(@mushroom, @sslrem, @socket, @stream.aspect_b)
 
 		# BILATERAL COMMUNICATIONS WITH THE PRESIDENT Y'KNOW WHAT I'M SAYIN'
 		transition_to :ssl_comm
@@ -238,6 +241,7 @@ class Mushroom::ClientSpore < Mushroom::Spore
 
 	state :ssl_comm do
 		not_ready! if @buffer.length.zero?
+		@aspect.write @buffer
 		@sslrem.write @buffer
 		@buffer = ""
 	end

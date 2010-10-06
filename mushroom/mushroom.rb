@@ -33,10 +33,17 @@ class Mushroom
 		end
 	end
 
+	OPTIONS_DEFAULTS = {
+		:port 					=> 7726,
+		:get_cert_for			=> nil,
+		:promiscuous_connect	=> false,
+		:stream_receiver		=> nil,
+	}
+
 	def initialize(opts={})
-		@port = opts[:port] || 7726
-		@get_cert_for = opts[:get_cert_for] || nil
-		@promiscuous_connect = opts[:promiscuous_connect] || false
+		OPTIONS_DEFAULTS.each do |k,v|
+			instance_variable_set "@#{k}", opts.include?(k) ? opts[k] : v
+		end
 	end
 
 	def start!
@@ -59,6 +66,10 @@ class Mushroom
 	def join
 		raise NotDoingThatError if not @started
 		@thread.join
+	end
+
+	def new_stream!(stream)
+		@stream_receiver.call stream if @stream_receiver
 	end
 
 	attr_accessor :server, :port, :spores, :get_cert_for, :promiscuous_connect

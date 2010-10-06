@@ -13,24 +13,31 @@
 # You should have received a copy of the GNU General Public License
 # along with mushroom.  If not, see <http://www.gnu.org/licenses/>.
 
-## RemoteForwarderSpore
-# Just forwards data back to a socket.
-#
+require 'mushroom/mushroom'
 
-class Mushroom::RemoteForwarderSpore < Mushroom::Spore
-	def initialize(mushroom, socket, front, aspect)
-		super(mushroom, socket)
-		@front, @aspect = front, aspect
+class Mushroom::SporeStream
+	class Aspect
+		def initialize(stream)
+			@stream = stream
+			@buffer = ""
+		end
+
+
+		def write(data)
+			@buffer += data
+		end
+
+		attr_reader :buffer
 	end
 
-	def read_ready!
-		@front.write(begin
-			data = @socket.readpartial 8192
-		rescue EOFError
-			delete!
-			return
-		end)
-		@aspect.write data
+	def initialize(aspects)
+		@aspects = Array.new(aspects) {|i| Aspect.new(self)}
 	end
+
+	def method_missing(sym, *a, &b)
+		return @aspects[$1.ord - ?a.ord] if sym.match(/^aspect_([a-z])$/) and a.length.zero? and not b
+		super
+	end
+
+	attr_reader :aspects
 end
-
