@@ -19,12 +19,12 @@ class Mushroom::SporeStream
 	class Aspect
 		def initialize(stream)
 			@stream = stream
-			@buffer = ""
+			@buffer = []
 		end
 
 
 		def write(data)
-			@buffer += data
+			@buffer << [Time.now, data]
 		end
 
 		attr_reader :buffer
