@@ -17,21 +17,22 @@ require 'mushroom/mushroom'
 
 class Mushroom::SporeStream
 	class Aspect
-		def initialize(stream)
-			@stream = stream
+		def initialize(stream, id)
+			@stream, @id = stream, id
 			@buffer = []
 		end
 
-
 		def write(data)
 			@buffer << [Time.now, data]
+			@stream.write_handler.call(@id, data) if @stream.write_handler
 		end
 
 		attr_reader :buffer
 	end
 
 	def initialize(aspects)
-		@aspects = Array.new(aspects) {|i| Aspect.new(self)}
+		@aspects = Array.new(aspects) {|i| Aspect.new(self, i)}
+		@write_handler = nil
 	end
 
 	def method_missing(sym, *a, &b)
@@ -40,4 +41,5 @@ class Mushroom::SporeStream
 	end
 
 	attr_reader :aspects
+	attr_accessor :write_handler
 end
