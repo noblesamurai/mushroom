@@ -27,17 +27,44 @@ class Mushroom::SporeStream
 			@stream.write_handler.call(@id, data) if @stream.write_handler
 		end
 
-		attr_reader :buffer
+		def _dump(depth)
+			# Don't save our link back to the stream, lest recursion!
+			Marshal.dump([@id, @buffer], depth)
+		end
+		
+		def self._load(str)
+			id, buffer = Marshal.load(str)
+			aspect = new(nil, id)
+			aspect.buffer = buffer
+			aspect
+		end
+
+		attr_accessor :stream
+		attr_accessor :buffer
 	end
 
 	def initialize(aspects)
-		@aspects = Array.new(aspects) {|i| Aspect.new(self, i)}
+		@aspects = aspects.is_a?(Numeric) ? Array.new(aspects) {|i| Aspect.new(self, i)} : aspects
 		@write_handler = nil
 	end
 
 	def method_missing(sym, *a, &b)
 		return @aspects[$1.ord - ?a.ord] if sym.match(/^aspect_([a-z])$/) and a.length.zero? and not b
 		super
+	end
+
+	def _dump(depth)
+		Marshal.dump([@aspects], depth)
+	end
+
+	def self._load(str)
+		aspects, *_ = Marshal.load(str)
+		stream = new(aspects)
+
+		# Aspects can't restore their link back to this stream, so we have
+		# to do it manually.
+		stream.aspects.each {|a| a.stream = self}
+		stream
 	end
 
 	attr_reader :aspects
