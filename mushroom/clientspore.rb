@@ -87,8 +87,6 @@ class Mushroom::ClientSpore < Mushroom::Spore
 	state :request do
 		@method, @uri, @http_ver = buffer_to_nl.strip.split(" ", 3)
 
-		p [@method, @uri, @http_ver]
-
 		if not %w(HTTP/1.0 HTTP/1.1).include? @http_ver
 			send_error @http_ver, 505
 			delete!
