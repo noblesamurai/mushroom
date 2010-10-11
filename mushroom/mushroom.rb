@@ -83,8 +83,7 @@ class Mushroom
 				begin
 					r.read_ready!
 				rescue => e
-					p e
-					puts e.backtrace.join("\n")
+					puts "Encountered: #{e.inspect} at #{e.backtrace.first}"
 					r.delete!
 				end
 			end
