@@ -217,19 +217,27 @@ class Mushroom::ClientSpore < Mushroom::Spore
 			next not_ready!
 		end
 
-		if @ssl_remote_port == 443
+		if @ssl_remote_port == 443 and !$just_failed
 			# Masquerade SSL.
 			ctx = OpenSSL::SSL::SSLContext.new("SSLv23_server")
 			keybundle = @mushroom.get_cert_for.call(@ssl_remote_uri)
 			ctx.cert = OpenSSL::X509::Certificate.new(keybundle[:cert])
 			ctx.key = OpenSSL::PKey::RSA.new(keybundle[:key])
+			ctx.verify_mode = OpenSSL::SSL::VERIFY_NONE
 
 			@socket = OpenSSL::SSL::SSLSocket.new(@socket, ctx)	# !!
-			@socket.accept
+			begin
+				@socket.accept
+			rescue
+				puts "just failed: #{$!.inspect}"
+				$just_failed = true
+				raise
+			end
 
 			@sslrem = OpenSSL::SSL::SSLSocket.new(@sslrem.to_io)
 			@sslrem.connect
 		end
+		$just_failed = false
 
 		@mushroom.new_stream!(@stream = Mushroom::SporeStream.new(2))
 		@aspect = @stream.aspect_a
