@@ -237,9 +237,13 @@ class Mushroom::ClientSpore < Mushroom::Spore
 		end
 		$just_failed = false
 
-		@mushroom.new_stream!(@stream = Mushroom::SporeStream.new(2))
+		
+		@stream = Mushroom::SporeStream.new(2)
 		@aspect = @stream.aspect_a
 		@mushroom.spores[@sslrem.to_io.fileno] = Mushroom::RemoteForwarderSpore.new(@mushroom, @sslrem, @socket, @stream.aspect_b)
+
+		# Don't track this one if it's just going to local.
+		@mushroom.new_stream! @stream if @ssl_remote_uri != "127.0.0.1"
 
 		# BILATERAL COMMUNICATIONS WITH THE PRESIDENT Y'KNOW WHAT I'M SAYIN'
 		transition_to :ssl_comm
