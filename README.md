@@ -9,7 +9,7 @@ Consider [Бефстроганов](http://en.wikipedia.org/wiki/Beef_stroganoff
 
 ## contributors
 
- - [Arlen Cuss](http://github.com/celtic) with [Noble Samurai](http://github.com/noblesamurai)
+ - [Anneli Cuss](http://github.com/celtic) with [Noble Samurai](http://github.com/noblesamurai)
  - You?
 
 ## license
